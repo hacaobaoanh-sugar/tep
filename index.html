@@ -33,7 +33,7 @@
     <div class="table-responsive" id="output"></div>
 
     <script>
-        // ĐIỀN ĐƯỜNG LINK URL GOOGLE APPS SCRIPT BẠN COPY Ở BƯỚC 2 VÀO ĐÂY:
+        // ĐIỀN ĐƯỜNG LINK URL GOOGLE APPS SCRIPT BẠN VỪA COPY Ở BƯỚC 1 VÀO ĐÂY:
         const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxyHuAk1y6Mm25xTCh5Gy11KsQRDVgCvkt-6sTDh2NxXYHZlXmEiykydvOfKkbu5BSH/exec";
 
         function performSearch() {
@@ -45,16 +45,19 @@
                 return;
             }
 
-            outputDiv.innerHTML = "<p class='status-msg loading'>⏳ Đang kết nối dữ liệu, vui lòng đợi giây lát...</p>";
+            outputDiv.innerHTML = "<p class='status-msg loading'>⏳ Đang kết nối dữ liệu an toàn, vui lòng đợi giây lát...</p>";
 
-            // Gửi yêu cầu bảo mật lên Google Sheets
+            // Gọi API bằng phương thức text() thay vì json() để triệt tiêu lỗi CORS của trình duyệt
             fetch(`${SCRIPT_URL}?id=${encodeURIComponent(searchTerm)}`)
-                .then(response => response.json())
-                .then(data => {
+                .then(response => response.text())
+                .then(textData => {
+                    // Giải mã chuỗi JSON từ cấu trúc HtmlOutput
+                    const data = JSON.parse(textData);
+                    
                     if (data.success) {
                         let tableHTML = "<table><tr>";
                         
-                        // Render Tiêu đề (Tự động bẻ dòng nếu tiêu đề dài)
+                        // Render Tiêu đề (Bẻ dòng nếu tiêu đề dài chứa \n)
                         data.headers.forEach(header => {
                             tableHTML += `<th>${header.toString().replace(/\n/g, "<br>")}</th>`;
                         });
@@ -72,8 +75,8 @@
                     }
                 })
                 .catch(error => {
-                    console.error("Lỗi:", error);
-                    outputDiv.innerHTML = "<p class='status-msg error'>❌ Đã xảy ra lỗi kết nối. Hãy thử lại hoặc liên hệ giáo viên chủ nhiệm.</p>";
+                    console.error("Lỗi hệ thống:", error);
+                    outputDiv.innerHTML = "<p class='status-msg error'>❌ Đã kết nối thành công nhưng Google chặn phản hồi. Hãy kiểm tra lại bạn đã chọn quyền truy cập là 'Anyone' (Bất kỳ ai) khi Deploy chưa.</p>";
                 });
         }
     </script>
