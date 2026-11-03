@@ -33,7 +33,7 @@
     <div class="table-responsive" id="output"></div>
 
     <script>
-        // ĐIỀN ĐƯỜNG LINK URL GOOGLE APPS SCRIPT BẠN VỪA COPY Ở BƯỚC 1 VÀO ĐÂY:
+        // ĐIỀN ĐƯỜNG LINK URL GOOGLE APPS SCRIPT BẠN VỪA DEPLOY LẠI VÀO ĐÂY:
         const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxyHuAk1y6Mm25xTCh5Gy11KsQRDVgCvkt-6sTDh2NxXYHZlXmEiykydvOfKkbu5BSH/exec";
 
         function performSearch() {
@@ -47,37 +47,50 @@
 
             outputDiv.innerHTML = "<p class='status-msg loading'>⏳ Đang kết nối dữ liệu an toàn, vui lòng đợi giây lát...</p>";
 
-            // Gọi API bằng phương thức text() thay vì json() để triệt tiêu lỗi CORS của trình duyệt
-            fetch(`${SCRIPT_URL}?id=${encodeURIComponent(searchTerm)}`)
-                .then(response => response.text())
-                .then(textData => {
-                    // Giải mã chuỗi JSON từ cấu trúc HtmlOutput
-                    const data = JSON.parse(textData);
-                    
-                    if (data.success) {
-                        let tableHTML = "<table><tr>";
-                        
-                        // Render Tiêu đề (Bẻ dòng nếu tiêu đề dài chứa \n)
-                        data.headers.forEach(header => {
-                            tableHTML += `<th>${header.toString().replace(/\n/g, "<br>")}</th>`;
-                        });
-                        tableHTML += "</tr><tr>";
+            // Xóa script cũ nếu có trước khi tạo yêu cầu mới
+            const oldScript = document.getElementById("jsonpScript");
+            if (oldScript) oldScript.remove();
 
-                        // Render Điểm số học sinh
-                        data.studentData.forEach(cell => {
-                            tableHTML += `<td>${cell !== undefined && cell !== null ? cell : ""}</td>`;
-                        });
-                        tableHTML += "</tr></table>";
-                        
-                        outputDiv.innerHTML = tableHTML;
-                    } else {
-                        outputDiv.innerHTML = `<p class='status-msg error'>❌ Không tìm thấy mã định danh "${searchTerm}" trong hệ thống.</p>`;
-                    }
-                })
-                .catch(error => {
-                    console.error("Lỗi hệ thống:", error);
-                    outputDiv.innerHTML = "<p class='status-msg error'>❌ Đã kết nối thành công nhưng Google chặn phản hồi. Hãy kiểm tra lại bạn đã chọn quyền truy cập là 'Anyone' (Bất kỳ ai) khi Deploy chưa.</p>";
+            // Tạo giải pháp JSONP để bẻ gãy hoàn toàn lỗi CORS
+            const script = document.createElement("script");
+            script.id = "jsonpScript";
+            script.src = `${SCRIPT_URL}?id=${encodeURIComponent(searchTerm)}&callback=handleSpreadsheetResponse`;
+            
+            // Xử lý khi script gặp lỗi kết nối mạng vật lý
+            script.onerror = function() {
+                outputDiv.innerHTML = "<p class='status-msg error'>❌ Không thể kết nối tới máy chủ Google. Vui lòng thử lại sau.</p>";
+            };
+
+            document.body.appendChild(script);
+        }
+
+        // Hàm tiếp nhận dữ liệu đổ về từ Google Sheets sau khi xử lý JSONP thành công
+        function handleSpreadsheetResponse(data) {
+            const outputDiv = document.getElementById("output");
+            
+            if (data.success) {
+                let tableHTML = "<table><tr>";
+                
+                // Hiển thị tiêu đề
+                data.headers.forEach(header => {
+                    tableHTML += `<th>${header.toString().replace(/\n/g, "<br>")}</th>`;
                 });
+                tableHTML += "</tr><tr>";
+
+                // Hiển thị điểm số học sinh
+                data.studentData.forEach(cell => {
+                    tableHTML += `<td>${cell !== undefined && cell !== null ? cell : ""}</td>`;
+                });
+                tableHTML += "</tr></table>";
+                
+                outputDiv.innerHTML = tableHTML;
+            } else {
+                outputDiv.innerHTML = `<p class='status-msg error'>❌ Không tìm thấy mã định danh phù hợp trong hệ thống.</p>`;
+            }
+
+            // Dọn dẹp thẻ script sau khi nhận xong dữ liệu
+            const script = document.getElementById("jsonpScript");
+            if (script) script.remove();
         }
     </script>
 </body>
