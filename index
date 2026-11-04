@@ -5,92 +5,113 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tra Cứu Kết Quả Học Tập THCS</title>
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 20px; background-color: #f8f9fa; color: #333; }
-        h2 { color: #0056b3; text-align: center; }
-        .search-container { margin: 20px auto; display: flex; gap: 10px; max-width: 500px; }
-        #searchInput { flex: 1; padding: 10px 15px; font-size: 15px; border: 2px solid #007bff; border-radius: 4px; outline: none; }
-        .search-container button { padding: 10px 20px; font-size: 15px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
+        * { box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 15px; background-color: #f4f6f9; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; }
+        h2 { color: #0056b3; text-align: center; font-size: 22px; margin-top: 10px; margin-bottom: 20px; }
+		h1 { color: #0056b3; text-align: center; font-size: 30px; margin-top: 15px; margin-bottom: 25px; }
+        
+        /* Khung tìm kiếm */
+        .search-container { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; }
+        #searchInput { width: 100%; padding: 12px 15px; font-size: 16px; border: 2px solid #007bff; border-radius: 8px; outline: none; -webkit-appearance: none; }
+        .search-container button { width: 100%; padding: 12px; font-size: 16px; background-color: #007bff; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; transition: background 0.2s; }
         .search-container button:hover { background-color: #0056b3; }
-        .table-responsive { overflow-x: auto; margin-top: 20px; background: #fff; box-shadow: 0 0 10px rgba(0,0,0,0.05); border-radius: 8px; }
-        table { border-collapse: collapse; width: 100%; font-size: 13px; min-width: 1200px; }
-        th, td { border: 1px solid #dee2e6; text-align: center; padding: 10px 6px; }
-        th { background-color: #007bff; color: white; font-weight: bold; white-space: nowrap; }
-        tr:nth-child(even) { background-color: #f8f9fa; }
-        .status-msg { text-align: center; font-size: 15px; margin-top: 20px; font-weight: bold; }
-        .error { color: #dc3545; }
-        .loading { color: #007bff; }
+        
+        /* Hiển thị kết quả dạng Thẻ (Card) tối ưu cho Mobile */
+        .result-card { background: #fff; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); padding: 15px; margin-top: 15px; display: none; border-top: 4px solid #007bff; }
+        .info-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px dashed #eee; font-size: 15px; }
+        .info-row:last-child { border-bottom: none; }
+        .info-label { font-weight: 600; color: #555; text-align: left; padding-right: 10px; }
+        .info-value { font-weight: bold; color: #000; text-align: right; }
+        
+        /* Đổi màu nổi bật cho các dòng điểm số chính */
+        .info-row:nth-child(1) .info-value, .info-row:nth-child(2) .info-value { color: #0056b3; } /* Tên và lớp màu xanh */
+        .info-row:last-child .info-value { color: #dc3545; font-size: 18px; } /* Điểm trung bình màu đỏ to hơn */
+
+        /* Trạng thái */
+        .status-msg { text-align: center; font-size: 15px; margin-top: 20px; font-weight: bold; padding: 10px; border-radius: 8px; }
+        .error { color: #dc3545; background-color: #f8d7da; border: 1px solid #f5c6cb; }
+        .loading { color: #007bff; background-color: #cce5ff; border: 1px solid #b8daff; }
+
+        /* Giao diện máy tính bảng/máy tính (Ngang) */
+        @media (min-width: 480px) {
+            .search-container { flex-direction: row; }
+            .search-container button { width: auto; min-width: 120px; }
+            h2 { font-size: 26px; }
+            .result-card { padding: 20px; }
+        }
     </style>
 </head>
 <body>
 
-    <h2>🔍 HỆ THỐNG TRA CỨU ĐIỂM HỌC SINH</h2>
-    
-    <div class="search-container">
-        <input type="text" id="searchInput" onkeydown="if(event.key === 'Enter') performSearch()" placeholder="Nhập chính xác mã định danh để xem điểm...">
-        <button onclick="performSearch()">Tìm kiếm</button>
+    <div class="container">
+		<h1>TRƯỜNG THCS TRẦN BÌNH TRỌNG</h1>
+        <h2>🔍 HỆ THỐNG TRA CỨU ĐIỂM</h2>
+        
+        <div class="search-container">
+            <input type="text" id="searchInput" inputmode="text" enterkeyhint="search" onkeydown="if(event.key === 'Enter') performSearch()" placeholder="Nhập chính xác mã định danh...">
+            <button onclick="performSearch()">Tìm kiếm</button>
+        </div>
+
+        <div id="status"></div>
+        <div class="result-card" id="outputCard"></div>
     </div>
 
-    <div class="table-responsive" id="output"></div>
-
     <script>
-        // ĐIỀN ĐƯỜNG LINK URL GOOGLE APPS SCRIPT BẠN VỪA DEPLOY LẠI VÀO ĐÂY:
-        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxyHuAk1y6Mm25xTCh5Gy11KsQRDVgCvkt-6sTDh2NxXYHZlXmEiykydvOfKkbu5BSH/exec";
+        // ĐIỀN ĐƯỜNG LINK URL GOOGLE APPS SCRIPT CỦA BẠN VÀO ĐÂY:
+        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxyHuAk1y6Mm25xTCh5Gy11KsQRDVgCvkt-6sTDh2NxXYHZlXmEiykydvOfKkbu5BSH/exec"; 
 
         function performSearch() {
-            const searchTerm = document.getElementById("searchInput").value.trim();
-            const outputDiv = document.getElementById("output");
+            const query = document.getElementById("searchInput").value.trim();
+            const statusDiv = document.getElementById("status");
+            const cardDiv = document.getElementById("outputCard");
 
-            if (searchTerm === "") {
-                outputDiv.innerHTML = "<p class='status-msg error'>Vui lòng nhập mã định danh để tìm kiếm.</p>";
+            // Ẩn thẻ kết quả trước đó
+            cardDiv.style.display = "none";
+            cardDiv.innerHTML = "";
+
+            if (!query) {
+                statusDiv.innerHTML = '<div class="status-msg error">Vui lòng nhập mã định danh để tra cứu!</div>';
                 return;
             }
 
-            outputDiv.innerHTML = "<p class='status-msg loading'>⏳ Đang kết nối dữ liệu an toàn, vui lòng đợi giây lát...</p>";
+            statusDiv.innerHTML = '<div class="status-msg loading">Đang lấy bảng điểm, vui lòng đợi...</div>';
 
-            // Xóa script cũ nếu có trước khi tạo yêu cầu mới
-            const oldScript = document.getElementById("jsonpScript");
-            if (oldScript) oldScript.remove();
+            fetch(`${SCRIPT_URL}?id=${encodeURIComponent(query)}`)
+                .then(response => response.json())
+                .then(result => {
+                    if (result.error) {
+                        statusDiv.innerHTML = `<div class="status-msg error">${result.error}</div>`;
+                        return;
+                    }
 
-            // Tạo giải pháp JSONP để bẻ gãy hoàn toàn lỗi CORS
-            const script = document.createElement("script");
-            script.id = "jsonpScript";
-            script.src = `${SCRIPT_URL}?id=${encodeURIComponent(searchTerm)}&callback=handleSpreadsheetResponse`;
-            
-            // Xử lý khi script gặp lỗi kết nối mạng vật lý
-            script.onerror = function() {
-                outputDiv.innerHTML = "<p class='status-msg error'>❌ Không thể kết nối tới máy chủ Google. Vui lòng thử lại sau.</p>";
-            };
+                    // Xóa thông báo trạng thái khi có kết quả hợp lệ
+                    statusDiv.innerHTML = "";
 
-            document.body.appendChild(script);
-        }
+                    // Tạo giao diện dạng danh sách dọc (Card)
+                    const studentData = result.data;
+                    const keys = Object.keys(studentData);
+                    
+                    let cardHtml = '';
+                    keys.forEach(key => {
+                        cardHtml += `
+                            <div class="info-row">
+                                <span class="info-label">${key}</span>
+                                <span class="info-value">${studentData[key]}</span>
+                            </div>
+                        `;
+                    });
 
-        // Hàm tiếp nhận dữ liệu đổ về từ Google Sheets sau khi xử lý JSONP thành công
-        function handleSpreadsheetResponse(data) {
-            const outputDiv = document.getElementById("output");
-            
-            if (data.success) {
-                let tableHTML = "<table><tr>";
-                
-                // Hiển thị tiêu đề
-                data.headers.forEach(header => {
-                    tableHTML += `<th>${header.toString().replace(/\n/g, "<br>")}</th>`;
+                    cardDiv.innerHTML = cardHtml;
+                    cardDiv.style.display = "block"; // Hiển thị thẻ điểm
+                    
+                    // Cuộn màn hình xuống kết quả tự động trên điện thoại
+                    cardDiv.scrollIntoView({ behavior: 'smooth' });
+                })
+                .catch(error => {
+                    statusDiv.innerHTML = '<div class="status-msg error">Có lỗi khi kết nối đến hệ thống máy chủ.</div>';
+                    console.error(error);
                 });
-                tableHTML += "</tr><tr>";
-
-                // Hiển thị điểm số học sinh
-                data.studentData.forEach(cell => {
-                    tableHTML += `<td>${cell !== undefined && cell !== null ? cell : ""}</td>`;
-                });
-                tableHTML += "</tr></table>";
-                
-                outputDiv.innerHTML = tableHTML;
-            } else {
-                outputDiv.innerHTML = `<p class='status-msg error'>❌ Không tìm thấy mã định danh phù hợp trong hệ thống.</p>`;
-            }
-
-            // Dọn dẹp thẻ script sau khi nhận xong dữ liệu
-            const script = document.getElementById("jsonpScript");
-            if (script) script.remove();
         }
     </script>
 </body>
